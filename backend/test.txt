@@ -1,3 +1,5 @@
 aaa
 
 git practice
+
+これがローカルリポジトリでの作業。
