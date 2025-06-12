@@ -89,7 +89,7 @@ const Home = () => {
   }, [])
 
   return (
-    <div className="h-[100svh] bg-cover" style={{ backgroundImage: bgUrl }}>
+    <div className="h-[100svh] bg-cover relative" style={{ backgroundImage: bgUrl }}>
       <Meta />
       <Introduction />
       {modelType === 'vrm' ? <VrmViewer /> : <Live2DViewer />}
@@ -101,6 +101,18 @@ const Home = () => {
       <WebSocketManager />
       <YoutubeManager />
       <CharacterPresetMenu />
+
+      {/* 生徒意見投稿用フォームに遷移するボタン */}
+      <a
+        className="absolute top-4 right-4 text-white px-4 py-2 rounded shadow hover:opacity-90"
+        href="/studentform"
+        style={{
+          backgroundColor: 'rgb(133, 98, 146)',
+          zIndex: 9999,
+        }}
+      >
+        生徒意見投稿
+      </a>
     </div>
   )
 }
