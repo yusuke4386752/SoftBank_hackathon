@@ -1,9 +1,9 @@
 import { getAIChatResponseStream } from '@/features/chat/aiChatFactory'
-import { Message, EmotionType } from '@/features/messages/messages'
+import { Message, EmotionType, Role } from '@/features/messages/messages'
 import { speakCharacter } from '@/features/messages/speakCharacter'
 import { judgeSlide } from '@/features/slide/slideAIHelpers'
 import homeStore from '@/features/stores/home'
-import settingsStore from '@/features/stores/settings'
+import settingsStore, { CharacterPreset } from '@/features/stores/settings'
 import slideStore from '@/features/stores/slide'
 import { goToSlide } from '@/components/slides'
 import { messageSelectors } from '../messages/messageSelectors'
@@ -269,8 +269,9 @@ export const speakMessageHandler = async (receivedMessage: string) => {
 /**
  * AIからの応答を処理する関数 (Refactored for chunk-by-chunk saving)
  * @param messages 解答生成に使用するメッセージの配列
+ * @param apiType どのAPIキーを使うかを指定するタイプ
  */
-export const processAIResponse = async (messages: Message[]) => {
+export const processAIResponse = async (messages: Message[], apiType: CharacterPreset['apiType']) => {
   const sessionId = generateSessionId()
   homeStore.setState({ chatProcessing: true })
   let stream
@@ -279,7 +280,7 @@ export const processAIResponse = async (messages: Message[]) => {
   const assistantMessageListRef = { current: [] as string[] }
 
   try {
-    stream = await getAIChatResponseStream(messages)
+    stream = await getAIChatResponseStream(messages, apiType)
   } catch (e) {
     console.error(e)
     homeStore.setState({ chatProcessing: false })
@@ -397,8 +398,7 @@ export const processAIResponse = async (messages: Message[]) => {
             const afterDelimiterRaw = processableTextForSpeech.substring(
               delimiterIndex + CODE_DELIMITER.length
             )
-
-            //
+            
             let textToProcessBeforeCode = beforeCode.trimStart()
             while (textToProcessBeforeCode.length > 0) {
               const prevText = textToProcessBeforeCode
@@ -575,14 +575,40 @@ export const processAIResponse = async (messages: Message[]) => {
  * 画面のチャット欄から入力されたときに実行される処理
  * Youtubeでチャット取得した場合もこの関数を使用する
  */
-export const handleSendChatFn = () => async (text: string) => {
+export const handleSendChatFn = () => async (text: string, systemPrompt: string, apiType: CharacterPreset['apiType']) => {
+  const ss = settingsStore.getState();
+
+  // ★★★ 1. ここから使用回数制限のチェックロジック ★★★
+  if (ss.usageLimitEnabled) {
+    const now = Date.now();
+    if (now > ss.usageResetTimestamp) {
+      ss.resetUsageTracker();
+      const newSs = settingsStore.getState();
+      if (newSs.currentUsageCount >= newSs.usageLimitCount) {
+        toastStore.getState().addToast({
+          message: 'AIの使用回数制限に達しました。しばらく待ってからお試しください。',
+          type: 'error',
+          tag: 'usage-limit-exceeded',
+        });
+        return;
+      }
+    } else if (ss.currentUsageCount >= ss.usageLimitCount) {
+      toastStore.getState().addToast({
+        message: 'AIの使用回数制限に達しました。しばらく待ってからお試しください。',
+        type: 'error',
+        tag: 'usage-limit-exceeded',
+      });
+      return;
+    }
+  }
+  // ★★★ チェックロジックここまで ★★★
+
   const sessionId = generateSessionId()
   const newMessage = text
   const timestamp = new Date().toISOString()
 
   if (newMessage === null) return
 
-  const ss = settingsStore.getState()
   const sls = slideStore.getState()
   const wsManager = webSocketStore.getState().wsManager
   const modalImage = homeStore.getState().modalImage
@@ -619,7 +645,8 @@ export const handleSendChatFn = () => async (text: string) => {
       })
     }
   } else {
-    let systemPrompt = ss.systemPrompt
+    let finalSystemPrompt = systemPrompt
+
     if (ss.slideMode) {
       if (sls.isPlaying) {
         return
@@ -631,7 +658,7 @@ export const handleSendChatFn = () => async (text: string) => {
             `../../../public/slides/${sls.selectedSlideDocs}/scripts.json`
           )
         )
-        systemPrompt = systemPrompt.replace('{{SCRIPTS}}', scripts)
+        finalSystemPrompt = finalSystemPrompt.replace('{{SCRIPTS}}', scripts)
 
         let supplement = ''
         try {
@@ -643,7 +670,7 @@ export const handleSendChatFn = () => async (text: string) => {
           }
           const data = await response.json()
           supplement = data.supplement
-          systemPrompt = systemPrompt.replace('{{SUPPLEMENT}}', supplement)
+          finalSystemPrompt = finalSystemPrompt.replace('{{SUPPLEMENT}}', supplement)
         } catch (e) {
           console.error('supplement.txtの読み込みに失敗しました:', e)
         }
@@ -652,7 +679,7 @@ export const handleSendChatFn = () => async (text: string) => {
         const answer = JSON.parse(answerString)
         if (answer.judge === 'true' && answer.page !== '') {
           goToSlide(Number(answer.page))
-          systemPrompt += `\n\nEspecial Page Number is ${answer.page}.`
+          finalSystemPrompt += `\n\nEspecial Page Number is ${answer.page}.`
         }
       } catch (e) {
         console.error(e)
@@ -682,7 +709,7 @@ export const handleSendChatFn = () => async (text: string) => {
     const messages: Message[] = [
       {
         role: 'system',
-        content: systemPrompt,
+        content: finalSystemPrompt,
       },
       ...messageSelectors.getProcessedMessages(
         currentChatLog,
@@ -691,7 +718,11 @@ export const handleSendChatFn = () => async (text: string) => {
     ]
 
     try {
-      await processAIResponse(messages)
+      // ★★★ 2. AIへのリクエスト送信直前に、使用回数を1つ増やす ★★★
+      if (ss.usageLimitEnabled) {
+        ss.incrementUsageCount();
+      }
+      await processAIResponse(messages, apiType)
     } catch (e) {
       console.error(e)
       homeStore.setState({ chatProcessing: false })
@@ -706,7 +737,7 @@ export const handleReceiveTextFromWsFn =
   () =>
   async (
     text: string,
-    role?: string,
+    role?: Role,
     emotion: EmotionType = 'neutral',
     type?: string
   ) => {
@@ -728,7 +759,6 @@ export const handleReceiveTextFromWsFn =
 
     if (role !== 'user') {
       if (type === 'start') {
-        // startの場合は何もしない（textは空文字のため）
         console.log('Starting new response')
         wsManager?.setTextBlockStarted(false)
       } else if (
@@ -736,7 +766,6 @@ export const handleReceiveTextFromWsFn =
         hs.chatLog[hs.chatLog.length - 1].role === role &&
         wsManager?.textBlockStarted
       ) {
-        // 既存のメッセージに追加（IDを維持）
         const lastMessage = hs.chatLog[hs.chatLog.length - 1]
         const lastContent =
           typeof lastMessage.content === 'string' ? lastMessage.content : ''
@@ -747,7 +776,6 @@ export const handleReceiveTextFromWsFn =
           content: lastContent + text,
         })
       } else {
-        // 新しいメッセージを追加（新規IDを生成）
         homeStore.getState().upsertMessage({
           role: role,
           content: text,
@@ -757,7 +785,6 @@ export const handleReceiveTextFromWsFn =
 
       if (role === 'assistant' && text !== '') {
         try {
-          // 文ごとに音声を生成 & 再生、返答を表示
           speakCharacter(
             sessionId,
             {
@@ -775,9 +802,7 @@ export const handleReceiveTextFromWsFn =
                 assistantMessage: content,
               })
             },
-            () => {
-              // hs.decrementChatProcessingCount()
-            }
+            () => {}
           )
         } catch (e) {
           console.error('Error in speakCharacter:', e)
@@ -785,7 +810,6 @@ export const handleReceiveTextFromWsFn =
       }
 
       if (type === 'end') {
-        // レスポンスの終了処理
         console.log('Response ended')
         wsManager?.setTextBlockStarted(false)
         homeStore.setState({ chatProcessing: false })
@@ -799,19 +823,14 @@ export const handleReceiveTextFromWsFn =
  * RealtimeAPIからのテキストまたは音声データを受信したときの処理
  */
 export const handleReceiveTextFromRtFn = () => {
-  // 連続する response.audio イベントで共通の sessionId を使用するための変数
   let currentSessionId: string | null = null
 
   return async (
     text?: string,
-    role?: string,
+    role?: Role,
     type?: string,
     buffer?: ArrayBuffer
   ) => {
-    // type が `response.audio` かつ currentSessionId が未設定の場合に新しいセッションIDを発番
-    // それ以外の場合は既存の sessionId を使い続ける。
-    // レスポンス終了（content_part.done 等）時にリセットする。
-
     if (currentSessionId === null) {
       currentSessionId = generateSessionId()
     }
@@ -858,7 +877,6 @@ export const handleReceiveTextFromRtFn = () => {
     }
     homeStore.setState({ chatProcessing: false })
 
-    // レスポンスが完了したらセッションIDをリセット
     if (type === 'response.content_part.done') {
       currentSessionId = null
     }

@@ -11,6 +11,7 @@ import Live2DViewer from '@/components/live2DViewer'
 import { Toasts } from '@/components/toasts'
 import { WebSocketManager } from '@/components/websocketManager'
 import CharacterPresetMenu from '@/components/characterPresetMenu'
+import VrmSelector from '@/components/VrmSelector' // ★★★ 1. 作成したコンポーネントをインポート ★★★
 import homeStore from '@/features/stores/home'
 import settingsStore from '@/features/stores/settings'
 import '@/lib/i18n'
@@ -89,12 +90,23 @@ const Home = () => {
   }, [])
 
   return (
-    <div className="h-[100svh] bg-cover relative" style={{ backgroundImage: bgUrl }}>
+    <div
+      className="h-[100svh] bg-cover relative"
+      style={{ backgroundImage: bgUrl }}
+    >
       <Meta />
       <Introduction />
       {modelType === 'vrm' ? <VrmViewer /> : <Live2DViewer />}
       <Form />
       <Menu />
+
+      {/* ★★★ 2. アバター選択用のUIをここに追加 ★★★ */}
+      {modelType === 'vrm' && (
+        <div className="absolute top-16 left-4 z-50 bg-white bg-opacity-80 rounded-lg">
+          <VrmSelector />
+        </div>
+      )}
+
       <ModalImage />
       {messageReceiverEnabled && <MessageReceiver />}
       <Toasts />

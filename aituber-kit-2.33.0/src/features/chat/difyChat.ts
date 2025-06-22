@@ -1,4 +1,4 @@
-import settingsStore from '@/features/stores/settings'
+import settingsStore, { CharacterPreset } from '@/features/stores/settings'
 import { Message } from '../messages/messages'
 import i18next from 'i18next'
 import toastStore from '@/features/stores/toast'
@@ -15,17 +15,21 @@ export async function getDifyChatResponseStream(
   url: string,
   conversationId: string
 ): Promise<ReadableStream<string>> {
+  // ★★★ clientIdをストアから取得 ★★★
+  const { clientId } = settingsStore.getState();
+
   const response = await fetch('/api/difyChat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      query: messages[messages.length - 1].content,
+      messages,
       apiKey,
       url,
       conversationId,
       stream: true,
+      clientId, // ★★★ リクエストにclientIdを追加 ★★★
     }),
   })
 
