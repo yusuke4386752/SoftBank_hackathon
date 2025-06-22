@@ -10,7 +10,7 @@ const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   server: process.env.DB_SERVER || '', // DB_SERVERがundefinedの場合のエラーを防ぐため空文字を割り当て
-  database: process.env.DB_NAME,
+  database: process.env.DB_DATABASE,
   options: {
     encrypt: true, // Azure SQL Databaseには必須
     trustServerCertificate: false // 開発環境以外ではtrueにしない

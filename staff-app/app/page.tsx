@@ -1,6 +1,6 @@
 /*
  * ファイルの場所: /app/page.tsx
- * 役割: ヘッダー部分にAI分析レポートページへのボタンを設置します。
+ * 役割: Reactからの警告を解消するため、CSSのスタイル指定を修正します。
  * ★★★ このファイルの内容を全て以下のコードに置き換えてください ★★★
  */
 "use client";
@@ -50,8 +50,24 @@ const styles: { [key: string]: React.CSSProperties } = {
   disabledButton: { cursor: 'not-allowed', opacity: 0.5 },
   themeList: { listStyle: 'none', padding: 0, margin: 0 },
   themeListItem: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' },
-  themeButton: { flexGrow: 1, padding: '0.75rem', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', backgroundColor: 'white' },
-  selectedThemeButton: { backgroundColor: '#dbeafe', borderColor: '#3b82f6', fontWeight: 'bold' },
+  // ★★★ ここから修正 ★★★
+  themeButton: { 
+    flexGrow: 1, 
+    padding: '0.75rem', 
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#ccc',
+    borderRadius: '4px', 
+    cursor: 'pointer', 
+    textAlign: 'left', 
+    backgroundColor: 'white' 
+  },
+  selectedThemeButton: { 
+    backgroundColor: '#dbeafe', 
+    borderColor: '#3b82f6', 
+    fontWeight: 'bold' 
+  },
+  // ★★★ ここまで修正 ★★★
   themeActionButton: { padding: '0.5rem', border: 'none', borderRadius: '50%', cursor: 'pointer', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   analyzingBanner: { padding: '1rem', backgroundColor: '#fef9c3', color: '#713f12', textAlign: 'center', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #fde047', fontWeight: 'bold' }
 };
@@ -99,13 +115,14 @@ const PaginationControls: FC<{ pagination: Pagination, onPageChange: (page: numb
     ) : null
 );
 
-const ThemeList: FC<any> = ({ themes, selectedThemeId, onSelectTheme, onSoftDelete, onRestore, onHardDelete }) => (
+const ThemeList: FC<any> = ({ themes, selectedThemeId, onSelectTheme, onSoftDelete, onRestore, onHardDelete, onAnalyze }) => (
   <ul style={styles.themeList}>
     {themes.map((theme: Theme) => (
       <li key={theme.id} style={styles.themeListItem}>
         <button onClick={() => onSelectTheme(theme.id)} style={{...styles.themeButton, ...(selectedThemeId === theme.id ? styles.selectedThemeButton : {})}}>
           {theme.theme_title}
         </button>
+        {onAnalyze && <button onClick={() => onAnalyze(theme.id)} title="AIで分析" style={{...styles.themeActionButton, backgroundColor: '#fde68a', color: '#713f12'}}>🧠</button>}
         {onSoftDelete && <button onClick={() => onSoftDelete(theme.id, theme.theme_title)} style={{...styles.themeActionButton, backgroundColor: '#fee2e2', color: '#b91c1c'}}>✕</button>}
         {onRestore && <button onClick={() => onRestore(theme.id)} style={{...styles.themeActionButton, backgroundColor: '#dcfce7', color: '#166534'}}>✓</button>}
         {onHardDelete && <button onClick={() => onHardDelete(theme.id, theme.theme_title)} style={{...styles.themeActionButton, backgroundColor: '#ef4444', color: 'white'}}>🗑️</button>}
@@ -128,6 +145,8 @@ export default function StaffPage() {
   const [activeOpinionPagination, setActiveOpinionPagination] = useState<Pagination>({ currentPage: 1, totalPages: 1 });
   const [deletedOpinionPagination, setDeletedOpinionPagination] = useState<Pagination>({ currentPage: 1, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisLimit, setAnalysisLimit] = useState<number | 'all'>(10);
   const [error, setError] = useState<string | null>(null);
 
   const GRADES = ['中1', '中2', '中3', '高1', '高2', '高3'];
@@ -181,12 +200,38 @@ export default function StaffPage() {
     window.open(url, '_blank');
   };
 
+  const handleAnalyze = async (themeId: number) => {
+    const limitText = analysisLimit === 'all' ? '全ての' : `${analysisLimit}件の`;
+    if (!window.confirm(`このテーマの${limitText}未分析の意見をAIで分析しますか？`)) return;
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themeId, limit: analysisLimit }),
+      });
+      if (!res.ok) {
+        await handleApiError(res, '分析の実行に失敗しました。');
+      } else {
+        const result = await res.json();
+        alert(result.message);
+        fetchData();
+      }
+    } catch (err) {
+      alert('分析中に予期せぬエラーが発生しました。');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.headerTitle}>ココロボ・プロジェクト 管理画面</h1>
         <a href="/ai-report" style={{...styles.button, textDecoration: 'none' }}>🧠 AI分析レポート</a>
       </header>
+
+      {isAnalyzing && <div style={styles.analyzingBanner}>🧠 AI分析中...</div>}
 
       <div style={styles.mainContent}>
         <aside style={styles.sideNav}>
@@ -195,6 +240,19 @@ export default function StaffPage() {
               <input type="text" value={newThemeTitle} onChange={(e) => setNewThemeTitle(e.target.value)} placeholder="新しいテーマ" style={styles.input} />
               <button type="submit" style={{...styles.button, writingMode: 'vertical-rl', textOrientation: 'mixed' }}>投稿</button>
             </form>
+            <div style={{...styles.filterGroup, marginBottom: '1rem', padding: '0 0.5rem', justifyContent: 'space-between'}}>
+                <label htmlFor="analysis-limit">分析件数:</label>
+                <select 
+                  id="analysis-limit"
+                  value={analysisLimit} 
+                  onChange={e => setAnalysisLimit(e.target.value === 'all' ? 'all' : Number(e.target.value))} 
+                  style={{...styles.filterInput, flex: 1}}
+                >
+                  <option value={10}>10件ずつ</option>
+                  <option value={50}>50件ずつ</option>
+                  <option value="all">全て</option>
+                </select>
+            </div>
             
             <CollapsibleSection title="有効なテーマ" defaultOpen={true}>
               <div style={{...styles.filters, flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', marginBottom: '1rem', padding: '0 0.5rem' }}>
@@ -203,7 +261,7 @@ export default function StaffPage() {
                     <option value="created_at-DESC">新着順</option><option value="created_at-ASC">古い順</option><option value="theme_title-ASC">名前順 (昇順)</option><option value="theme_title-DESC">名前順 (降順)</option>
                 </select>
               </div>
-              <ThemeList themes={activeThemes} selectedThemeId={opinionFilters.themeId} onSelectTheme={(id: number) => handleOpinionFilterChange({ themeId: id })} onSoftDelete={(id: number, title: string) => handleThemeAction(id, 'soft-delete', `「${title}」を削除済みに移動しますか？`)} />
+              <ThemeList themes={activeThemes} selectedThemeId={opinionFilters.themeId} onSelectTheme={(id: number) => handleOpinionFilterChange({ themeId: id })} onSoftDelete={(id: number, title: string) => handleThemeAction(id, 'soft-delete', `「${title}」を削除済みに移動しますか？`)} onAnalyze={handleAnalyze} />
               <PaginationControls pagination={activeThemePagination} onPageChange={page => setActiveThemePagination(p => ({...p, currentPage: page}))} />
             </CollapsibleSection>
             

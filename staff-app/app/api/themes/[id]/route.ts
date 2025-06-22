@@ -27,25 +27,24 @@ export async function PATCH(
     await query(queryString, [{ name: 'id', type: sql.Int, value: Number(id) }]);
     return NextResponse.json({ message: 'Theme status updated' }, { status: 200 });
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('API Error in PATCH /api/themes/[id]:', error);
     return NextResponse.json({ message: 'Error updating theme', error: error.message }, { status: 500 });
   }
 }
 
 // テーマを完全に削除 (ハードデリート)
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const id = params.id;
-  try {
-    // 関連する意見も削除する場合は、以下のコメントを解除します
-    // await query('DELETE FROM Opinions WHERE ThemeId = @id', [{ name: 'id', type: sql.Int, value: Number(id) }]);
-    
-    await query('DELETE FROM Themes WHERE id = @id', [{ name: 'id', type: sql.Int, value: Number(id) }]);
+  try {    
+    await query('DELETE FROM Themes WHERE id = @id', [
+      { name: 'id', type: sql.Int, value: Number(id) }
+    ]);
     return NextResponse.json({ message: 'Theme permanently deleted' }, { status: 200 });
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('API Error in DELETE /api/themes/[id]:', error);
     return NextResponse.json({ message: 'Error deleting theme', error: error.message }, { status: 500 });
   }
 }
