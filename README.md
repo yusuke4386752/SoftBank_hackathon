@@ -55,25 +55,17 @@
 
 ## 🗄️ データベース構成
 
-![データベース構成](./images/db-diagram.png)
-
-※画像：`スクリーンショット 2025-07-02 20.46.53.png`
+<img width="746" alt="DataBase-diagram" src="https://github.com/user-attachments/assets/52544971-66e9-4bd6-95af-9aad681245b8" />
 
 ---
 
 ## 🏛️ 大津市職員向け画面構成
 
-![職員向け画面構成](./images/otsu-ui.png)
-
-※画像：`スクリーンショット 2025-07-02 20.47.09.png`
-
----
+<img width="755" alt="otsu-UI" src="https://github.com/user-attachments/assets/04aaeac3-17b0-421b-a777-18fc90e7ff84" />
 
 ## 🔁 生徒向け議論支援画面（AiTuberKit）
 
-![議論支援画面](./images/student-ui.png)
-
-※画像：`スクリーンショット 2025-07-02 20.47.29.png`
+<img width="749" alt="student-UI" src="https://github.com/user-attachments/assets/c5e53931-f4e6-42db-919b-985bb9fcdb9f" />
 
 ---
 
