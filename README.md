@@ -84,8 +84,6 @@
 
 ---
 
-## 🏷️ 使用バッジ（任意）
+## 開発者リーダー
 
-![Next.js](https://img.shields.io/badge/Framework-Next.js-blue)
-![Dify](https://img.shields.io/badge/AI-Dify-ff69b4)
-![Status](https://img.shields.io/badge/ProjectStatus-Prototype-yellow)
+森永悠介（yusuke4386752）
