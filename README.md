@@ -16,6 +16,13 @@
 
 ---
 
+## 実際の使用画面
+
+<img width="1596" alt="スクリーンショット 2025-07-10 10 26 29" src="https://github.com/user-attachments/assets/9c0f5844-6c0d-403c-a57b-22570f162b2a" />
+<img width="1220" alt="スクリーンショット 2025-07-10 10 25 47" src="https://github.com/user-attachments/assets/cb92c45d-71e5-4e48-9ba3-d5be7149e0dd" />
+<img width="1217" alt="スクリーンショット 2025-07-10 10 26 07" src="https://github.com/user-attachments/assets/67342718-f445-4f90-a959-1f821655ec8f" />
+
+
 ## 🎯 特徴
 
 - 💡 AIアバターは「正解」ではなく**問いかけ・ヒント**を提示
