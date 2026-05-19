@@ -8,7 +8,6 @@ export async function POST(req: Request) {
   * フロントエンドからはJSON形式で質問を送ることを想定
   */
         const { query } = await req.json(); // フロントから受け取った質問
-        console.log('APIキー:', process.env.DIFY_API_KEY); // API
 
 
         const res = await fetch("https://api.dify.ai/v1/chat-messages", {
